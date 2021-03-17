@@ -1,1 +1,1 @@
-# Panorama-Stitching-v2.0-
+# Panorama-Stitching-v2.0
