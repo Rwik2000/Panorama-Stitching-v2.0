@@ -16,7 +16,7 @@ Panorama Stitching
         |
         |___Outputs
         |
-        |___blend.py
+        |___blend_and_stitch.py
         |___Homography.py
         |___Main.py
         |___Warp.py

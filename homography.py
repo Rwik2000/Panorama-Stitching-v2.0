@@ -32,7 +32,7 @@ class homographyRansac():
             A[2*i,:] = [x_1,y_1,1,0,0,0,-x_2*x_1,-x_2*y_1,-x_2*z_1]
             A[2*i+1,:]=[0,0,0,x_1,y_1,1,-y_2*x_1,-y_2*y_1,-y_2*z_1]
         
-        # Using SVD to solve
+        # Using SVD to solve A
         U, D, V_t = np.linalg.svd(A)
         h = V_t[-1]
         H = np.zeros((3,3))
@@ -46,12 +46,13 @@ class homographyRansac():
     def getHomography(self,ptsA, ptsB):
         final_H = 0
         Bestcount= 0
+        # iterating multiple times to get the bet homography matrix
         for _ in range(self.ransaciter):
             _inliers = []
             # Random sampling
             rand_indices = random.sample(range(1, len(ptsA)),4)
             matches = [[ptsA[i], ptsB[i]] for i in rand_indices]
-
+ 
             H = self._single_homography(matches)
             count = 0
 
@@ -63,6 +64,7 @@ class homographyRansac():
                 actualNewLoc = np.array([ptsB[iter][0], ptsB[iter][1], 1])
 
                 # L2 norm between the given points
+                # adding to inliers if pts are closer than the threshold
                 if np.linalg.norm(transf_loc - actualNewLoc) <= self.ransacThresh:
                     count+=1
                     _inliers.append([ptsA[iter],ptsB[iter]])

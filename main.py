@@ -15,7 +15,7 @@ Flow of the Code:
 3. Finding the the homography matrix i.e. the mapping from one image plane to another.
 4. warping the images using the inverse of homography matrix to 
    ensure no distortion/blank spaces remain in the transformed image.
-5. Stitching all the warped images together
+5. Stitching and blendign all the warped images together
 '''
 import numpy as np
 import cv2
@@ -26,17 +26,20 @@ import random
 
 from homography import homographyRansac
 from Warp import Warp
-from blend import Laplacian_blending
+from blend_and_stitch import LaplacianBlend
 
 class panaroma_stitching():    
     def __init__(self):
         # Class parameters
-        self.isLeft = 1
-        self.isFinal = 0
+        self.ismid = 1
         self.LoweRatio = 0.75
-        # Blending toggle
-        self.blendON = 1
-    def stitchTwoImg(self, images):
+        self.warp_images = []
+        self.warp_mask = []
+        self.inbuilt_CV = 0
+    
+    # Finding the common features between the two images, mapping the features, 
+    # getting the homography and warping the required images
+    def map2imgs(self, images):
 
         (imageB, imageA) = images
         # Finding features and their corresponding keypoints in the given images
@@ -45,43 +48,22 @@ class panaroma_stitching():
         # match features between the two images
         H, invH= self.mapKeyPts(kpsA, kpsB,featuresA, featuresB)
         warpClass = Warp()
-        # Setting the offsets
-        if self.isLeft:
-            warpClass.yOffset = imageA.shape[1]
-        else:
-            warpClass.yOffset = 200
-        warpClass.xOffset = 50
-        offsets = [warpClass.xOffset, warpClass.yOffset]
+        if self.ismid:
+            # Setting the offset only for the main image... homography takes care of the rest of the images
+            warpClass.xOffset = 150
+            warpClass.yOffset = 500
 
         # Warping the image
-        warpedImg = warpClass.InvWarpPerspective(imageA, invH,H,
-            (imageB.shape[0] + 100, imageB.shape[1] + imageA.shape[1]))
-        result = np.uint8(warpedImg)
-        if self.isFinal==0:
-            if self.blendON:
-                # Mask for laplacian blending
-                m = np.ones_like(imageA)
-                # Warping the mask
-                m = warpClass.InvWarpPerspective(m, invH,H,
-                (imageB.shape[0] + 100, imageB.shape[1] + imageA.shape[1]))
+        warpedImg = warpClass.InvWarpPerspective(imageA, invH,H,(640, 1600))
+        return np.uint8(warpedImg)
 
-                warpedImg = np.uint8(warpedImg)
-                tmp_result = np.zeros_like(warpedImg)
-                tmp_result[0 + offsets[0]:imageB.shape[0] + offsets[0], 0 +  offsets[1]:imageB.shape[1]+  offsets[1]] = imageB
-                # Blending
-                result = Laplacian_blending(warpedImg, tmp_result, m, 3)
-            else:
-                # No blending
-                result[0 + offsets[0]:imageB.shape[0] + offsets[0], 0 +  offsets[1]:imageB.shape[1]+  offsets[1]] = imageB
-        else:
-            result = np.uint8(warpedImg)
-            for i in range(0 + offsets[0], imageB.shape[0] + offsets[0]):
-                for j in range(0 +  offsets[1], imageB.shape[1]+  offsets[1]):
-                    blank = result[i][j]==[0,0,0]
-                    if blank.all():
-                        result[i][j] = imageB[i - offsets[0]][j - offsets[1]]
 
-        return result
+    def extractMask(self,image):
+
+        _image = image.copy()
+        _image = cv2.cvtColor(_image, cv2.COLOR_BGR2GRAY)
+        _, _image = cv2.threshold(_image, 1, 255, cv2.THRESH_BINARY)
+        return _image
 
     def findSIFTfeatures(self, image):
 
@@ -92,6 +74,7 @@ class panaroma_stitching():
     
     def mapKeyPts(self, kpsA, kpsB, featuresA, featuresB):
         desc = cv2.DescriptorMatcher_create("BruteForce")
+        # using KNN to find the matches.
         _Matches = desc.knnMatch(featuresA, featuresB, 2)
         matches = []
         # loop over the raw matches
@@ -102,70 +85,88 @@ class panaroma_stitching():
             ptsA = np.float32([kpsA[i] for (_, i) in matches])      
             ptsB = np.float32([kpsB[i] for (i, _) in matches])
             # Calling the homography class
-            homographyFunc = homographyRansac(4,400)
+            reprojThresh =4
+            homographyFunc = homographyRansac(reprojThresh,1000)
             # Obtaining the homography matrix
-            H= homographyFunc.getHomography(ptsA, ptsB)
+            if not self.inbuilt_CV:
+                H= homographyFunc.getHomography(ptsA, ptsB)
+            else:
+                H,_ = cv2.findHomography(ptsA, ptsB, cv2.RANSAC, reprojThresh)
             # Obtaining the inverse homography matrix
             invH = np.linalg.inv(H)
             return H, invH
         return None
     
     def MultiStitch(self, images):
-        num_imgs = len(images)
-        # Separating left and right side of the final image 
-        if num_imgs%2 == 0:
-            left = images[:num_imgs//2]
-            right = images[num_imgs//2:]
+        
+        if len(images)%2!=0:
+            mid_image_loc = len(images)//2 
         else:
-            left = images[:num_imgs//2 + 1]
-            right = images[num_imgs//2:]
-        print("========> Stitching Left Side ...")
-        # Processing left Side
-        tempLeftStitch = images[0]
-        while len(left) >1:
-            temp_imgB = left.pop(0)
-            temp_imgA = left.pop(0)
-            tempLeftStitch = self.stitchTwoImg([temp_imgA, temp_imgB])
-            left.insert(0, tempLeftStitch)
-        tempRightStitch = images[-1]
-        self.isLeft = 0
-        # Processing Right Side
-        print("========> Done! \n========> Stitching Right Side ...")
-        while len(right)>1:
-            temp_imgA = right.pop(0)
-            temp_imgB = right.pop(0)
-            tempRightStitch = self.stitchTwoImg([temp_imgA, temp_imgB])
-            right.insert(0, tempRightStitch)
-        print("========> Done! \n========> Stitching Both Sides ...")
-        self.isLeft = 0
-        self.isFinal = 1
-        final = self.stitchTwoImg([tempLeftStitch, tempRightStitch])        
-        return final, tempLeftStitch, tempRightStitch
+            mid_image_loc = len(images)//2 - 1
+        
+        left_images = images[:mid_image_loc]
+        left_images = left_images[::-1]
+
+        right_images = images[mid_image_loc+1:]
+        mid_image = self.map2imgs((images[mid_image_loc], images[mid_image_loc]))
+        self.ismid = 0
+        temp_mid_image = mid_image
+        p = 0
+        for i in range(len(left_images)):
+            print("=============> Transformed Image : ", p)
+            p+=1
+            temp_warp = self.map2imgs((temp_mid_image, left_images[i]))
+            _mask = self.extractMask(temp_warp)
+            self.warp_mask.append(_mask)
+            self.warp_images.append(temp_warp)
+            temp_mid_image = temp_warp
+        self.warp_images = self.warp_images[::-1]
+        self.warp_mask = self.warp_mask[::-1]
+        print("=============> Transformed Image : ", p)
+        p+=1
+        self.warp_images.append(mid_image)
+        _mask = self.extractMask(mid_image)
+        self.warp_mask.append(_mask)
+        temp_mid_image = mid_image
+        for i in range(len(right_images)):
+            print("=============> Transformed Image : ", p)
+            p+=1
+            temp_warp = self.map2imgs((temp_mid_image, right_images[i]))
+            _mask = self.extractMask(temp_warp)
+            self.warp_mask.append(_mask)
+            self.warp_images.append(temp_warp)
+            temp_mid_image = temp_warp
+        print("Transformations Applied....")
+        print("Blending and Stitching....")
+        final = LaplacianBlend(self.warp_images,self.warp_mask)
+        cv2.imshow("stitch",final)        
+        cv2.waitKey(0)
+        return final
         
 
 # image in the dataset must be in order from left to right
-Datasets = ["I5"]
+Datasets = ["I1","I4","I5"]
 for Dataset in Datasets:
     print("Stitching Dataset : ", Dataset)
     Path = "Dataset/"+Dataset
     images=[]
+    alpha = []
     for filename in os.listdir(Path):
         if filename.endswith(".JPG") or filename.endswith(".PNG"):
             img_dir = Path+'/'+str(filename)
             images.append(cv2.imread(img_dir))
 
     for i in range(len(images)):
-        images[i] = imutils.resize(images[i], width=500)
+        images[i] = imutils.resize(images[i], width=300)
 
-    images = images[1:5]
+    images = images[:]
     stitcher = panaroma_stitching()
-    result, left, right = stitcher.MultiStitch(images)
-    print("========>Done! Final Image Saved in Outputs Dir!")
+    result = stitcher.MultiStitch(images)
+    print("========>Done! Final Image Saved in Outputs Dir!\n\n")
     if os.path.exists("Outputs/"+Dataset):
         shutil.rmtree("Outputs/"+Dataset)
     os.makedirs("Outputs/"+Dataset, )
     cv2.imwrite("Outputs/"+Dataset+"/"+Dataset+".JPG", result)
-    cv2.imwrite("Outputs/"+Dataset+"/"+Dataset+"_left.JPG", left)
-    cv2.imwrite("Outputs/"+Dataset + "/"+Dataset+"_right.JPG", right)
+
 
 
