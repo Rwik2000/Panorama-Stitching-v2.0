@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from skimage.transform import pyramid_gaussian, pyramid_laplacian
 def blend(images, masks, n=5):
     """
     Image blending using Image Pyramids. We calculate Gaussian Pyramids using OpenCV.add()
@@ -15,10 +16,9 @@ def blend(images, masks, n=5):
 
     assert(images[0].shape[0] % pow(2, n) ==
            0 and images[0].shape[1] % pow(2, n) == 0)
-    for k in images:
-        cv2.imshow("k",k)
-        cv2.waitKey(0)
-    # Defining dictionaries for various pyramids
+
+    # for i in range(len(images)):
+    #     images[i] = images[i].astype(float)
     g_pyramids = {}
     l_pyramids = {}
 
@@ -31,12 +31,15 @@ def blend(images, masks, n=5):
         G = images[i].copy()
         g_pyramids[i] = [G]
         for _ in range(n):
+            # G = cv2.resize(G,(G.shape[1]//2, G.shape[0]//2), interpolation=cv2.INTER_NEAREST)
             G = cv2.pyrDown(G)
-            g_pyramids[i].append(G)
+            g_pyramids[i].append(np.float32(G))
 
         # Laplacian Pyramids
         l_pyramids[i] = [G]
         for j in range(len(g_pyramids[i])-2, -1, -1):
+            # G_up = cv2.resize(G,(G.shape[1]*2, G.shape[0]*2), interpolation=cv2.INTER_NEAREST)
+
             G_up = cv2.pyrUp(G)
             G = g_pyramids[i][j]
             L = G - G_up
@@ -55,9 +58,13 @@ def blend(images, masks, n=5):
     # n images
     for i in range(1, len(images)):
 
-        # To decide which is left/right
         y1, x1 = np.where(common_mask == 1)
         y2, x2 = np.where(masks[i] == 1)
+
+        # cv2.imshow("cm",common_image)
+        # cv2.imshow("curr",images[i])
+        # cv2.waitKey(0)
+
         # print(x1,x2)
         if np.max(x1) > np.max(x2):
             left_py = l_pyramids[i]
@@ -66,13 +73,11 @@ def blend(images, masks, n=5):
         else:
             left_py = common_pyramids
             right_py = l_pyramids[i]
-        
-        # for j in left_py:
-        #     cv2.imshow("l", j)
-        #     # cv2.imshow("r", right_py)
-        #     cv2.waitKey(0)
-        #     exit()
 
+        # for j in range(len(left_py)):
+            # cv2.imshow("l", left_py[j])
+            # cv2.imshow("r", right_py[j])
+            # cv2.waitKey(0)
         # To check if the two pictures need to be blended are overlapping or not
         mask_intersection = np.bitwise_and(common_mask, masks[i])
         # cv2.imshow("op", op)s
@@ -87,21 +92,14 @@ def blend(images, masks, n=5):
             LS = []
             for la, lb in zip(left_py, right_py):
                 rows, cols, dpt = la.shape
-                print(rows, cols)
+                # print(rows, cols)
                 ls = np.hstack((la[:, 0:int(split*cols)], lb[:, int(split*cols):]))
-                # cv2.imshow("lb",lb[:, 0:int(split*cols)])
-                # cv2.imshow("la",la[:, 0:int(split*cols)])
-                # cv2.waitKey(0)
                 LS.append(ls)
-            # exit()
-            # for k in LS:
-            #     cv2.imshow("k",k)
-            #     cv2.waitKey(0)
 
         else:
             LS = []
             for la, lb in zip(left_py, right_py):
-                rows, cols, dpt = la.shape
+                _, cols, _ = la.shape
                 ls = la + lb
                 LS.append(ls)
 
@@ -110,10 +108,12 @@ def blend(images, masks, n=5):
         for j in range(1, n+1):
             ls_ = cv2.pyrUp(ls_)
             ls_ = ls_ + LS[j]
+            ls_[ls_>255] = 255; ls_[ls_<0] = 0
+            
 
         # Preparing the commong image for next image to be added
         common_image = ls_
         common_mask = np.sum(common_image.astype(bool), axis=2).astype(bool)
         common_pyramids = LS
 
-    return ls_
+    return np.uint8(ls_)

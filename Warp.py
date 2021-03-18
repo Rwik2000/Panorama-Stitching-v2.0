@@ -10,6 +10,7 @@ class Warp():
     def __init__(self):
         self.xOffset = 0
         self.yOffset = 0
+
     # AVOID USING THIS FUNCTION
     def warpPerspective(self, im, H, output_shape):
         """ Warps an image im using (3,3) homography Matrix matrix H. 
@@ -50,18 +51,29 @@ class Warp():
 
         x1 = [0,0,1]
         x2 = [im.shape[1], im.shape[0],1]
+
+        # bw_im = cv2.cvtColor(im.copy(), cv2.COLOR_BGR2GRAY)
+        # bw_im  = bw_im.astype(bool)
         x1_trnsf = H.dot(np.array(x1).T)
         x1_trnsf = list(x1_trnsf/x1_trnsf[2])
         x2_trnsf = H.dot(np.array(x2).T)
         x2_trnsf = list(x2_trnsf/x2_trnsf[2])
+        
+        x1d_trnsf = H.dot(np.array([x1[0], x2[1], 1]).T)
+        x2d_trnsf = H.dot(np.array([x2[0], x1[1], 1]).T)
 
-        y_min = int(min(x1_trnsf[1], x2_trnsf[1]))
-        y_max = int(max(x1_trnsf[1], x2_trnsf[1]))
-        x_min = int(min(x1_trnsf[0], x2_trnsf[0]))
-        x_max = int(max(x1_trnsf[0], x2_trnsf[0]))
-
+        y_min = int(min(x1_trnsf[1], x2_trnsf[1],  x1d_trnsf[1],  x2d_trnsf[1]))
+        y_max = int(max(x1_trnsf[1], x2_trnsf[1],  x1d_trnsf[1],  x2d_trnsf[1]))
+        x_min = int(min(x1_trnsf[0], x2_trnsf[0],  x1d_trnsf[0],  x2d_trnsf[0]))
+        x_max = int(max(x1_trnsf[0], x2_trnsf[0],  x1d_trnsf[0],  x2d_trnsf[0]))
         warpImage = np.zeros(( output_shape[0], output_shape[1],3))
+        if (x_min + self.yOffset)<0:
+            x_min = 0 - self.yOffset
+        if (x_max + self.yOffset) >  output_shape[1]:
+            x_max = output_shape[1] - self.yOffset
+
         for i in range(x_min, x_max): 
+            # print(i)
             for j in range(y_min, y_max): 
                 M = invA.dot(np.array([i,j,1]).T)
                 M = M/M[2]
@@ -70,9 +82,12 @@ class Warp():
                 rq = int(round(q))
 
                 try:
-                    if rq>=0 and rp>=0 and j+self.xOffset>=0:
+                    if rq>=0 and rp>=0 and j +self.xOffset>=0 and i +self.yOffset >= 0 :
+                        # if self.logs:
+                        #     print("yes")
                         warpImage[j +self.xOffset, i +self.yOffset] = im[rq, rp]
+
                 except:                    
                     continue              
-
+        
         return warpImage
