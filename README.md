@@ -1,9 +1,9 @@
-![alt text](https://github.com/Rwik2000/Panorama-Stitching/blob/main/Dataset/sample.jpg)
+![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Dataset/sample.jpg)
 # Panorama Stitching
 
 Code by Rwik Rana, IITGn.
 
-View the project on https://github.com/Rwik2000/Panorama-Stitching for better viewing 
+View the project on https://github.com/Rwik2000/Panorama-Stitching-v2.0 for better viewing 
 
 This is a Code to stitch multiple images to create panoramas. This is robust for stitching **4 images**. This is the tree for the entire repo:\
 
@@ -34,33 +34,33 @@ warping, RANSAC and Laplacian Blending to solve the problem statement.
 * imutils
 
 ##### Procedure:
-In the [main.py](https://github.com/Rwik2000/Panorama-Stitching/blob/main/main.py), 
+In the [main.py](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py), 
 1. Add your dataset in the Dataset Directory.
-2. In [line 147](https://github.com/Rwik2000/Panorama-Stitching/blob/main/main.py#L147), add your datasets in the Datasets array.
+2. In [line 148](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py#L148), add your datasets in the Datasets array.
 ```python
-Datasets = ["I5"] #ADD YOUR DATASET HERE
+Datasets = ["I1","I4","I5"] #ADD YOUR DATASET HERE
 for Dataset in Datasets:
     print("Stitching Dataset : ", Dataset)
     Path = "Dataset/"+Dataset
     images=[]
+    alpha = []
     for filename in os.listdir(Path):
         if filename.endswith(".JPG") or filename.endswith(".PNG"):
             img_dir = Path+'/'+str(filename)
             images.append(cv2.imread(img_dir))
 
     for i in range(len(images)):
-        images[i] = imutils.resize(images[i], width=500)
+        images[i] = imutils.resize(images[i], width=300)
 
-    images = images[1:5]
+    images = images[:]
     stitcher = panaroma_stitching()
-    result, left, right = stitcher.MultiStitch(images)
-    print("========>Done! Final Image Saved in Outputs Dir!")
+    result = stitcher.MultiStitch(images)
+    print("========>Done! Final Image Saved in Outputs Dir!\n\n")
     if os.path.exists("Outputs/"+Dataset):
         shutil.rmtree("Outputs/"+Dataset)
     os.makedirs("Outputs/"+Dataset, )
     cv2.imwrite("Outputs/"+Dataset+"/"+Dataset+".JPG", result)
-    cv2.imwrite("Outputs/"+Dataset+"/"+Dataset+"_left.JPG", left)
-    cv2.imwrite("Outputs/"+Dataset + "/"+Dataset+"_right.JPG", right)
+
 ```
 3. The output of the same would be save in the Output directory.
 
@@ -70,10 +70,10 @@ for Dataset in Datasets:
 3. Finding the the homography matrix i.e. the mapping from one image plane to another.
 4. warping the images using the inverse of homography matrix to 
    ensure no distortion/blank spaces remain in the transformed image.
-5. Stitching all the warped images together
+5. Stitching and blending all the warped images together
 
 #### Implementation of Ransac:
-Refer to the `homographyRansac()` in [Homography.py](https://github.com/Rwik2000/Panorama-Stitching/blob/main/homography.py). Access the object `getHomography()` of the class to get the desired homography matrix.
+Refer to the `homographyRansac()` in [Homography.py](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/homography.py). Access the object `getHomography()` of the class to get the desired homography matrix.
 ```python
         # Set the threshold and number of iterations neede in RANSAC.
         self.ransacThresh = ransacThresh
@@ -81,7 +81,8 @@ Refer to the `homographyRansac()` in [Homography.py](https://github.com/Rwik2000
 
 
 ```
-For Warping, use the `InvWarpPerspective()` from [Warp.py](https://github.com/Rwik2000/Panorama-Stitching/blob/main/Warp.py).
+#### Warping
+For Warping, use the `InvWarpPerspective()` from [Warp.py](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Warp.py).
 
 **Note** : Avoid using the `warpPersepctive()`, because it gives distorted and incomplete projection of the images.
 
@@ -102,13 +103,17 @@ def InvWarpPerspective(self, im, invA, H,output_shape):
                 
         return warpImage
 ```
+#### Laplacian Blending
+Input list of images and their corresponding masks in grayscale. Along with that add the number of layers of laplcian pyramid is to be made for the final blending and stitching. it is to be noted that the input images to the `LaplacianBlending()` function must have a shape such that the number of rows and columns are divisible by 2^n.
+
+The shape of the output image can be changed in [Line 57](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py#L57) of of `main.py` file. Notice here, I have kept a size of (640, 1600) i.e. height and width being 640 and 1600 respectively.
 
 ## Results
 
-![alt text](https://github.com/Rwik2000/Panorama-Stitching/blob/main/Final_Outputs/I5.JPG)
+![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Final_Outputs/I1.JPG)
 
-![alt text](https://github.com/Rwik2000/Panorama-Stitching/blob/main/Outputs/I1/I1.JPG)
+![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Outputs/I4/I4.JPG)
 
-![alt text](https://github.com/Rwik2000/Panorama-Stitching/blob/main/Outputs/I2/I2.JPG)
+![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Outputs/I5/I5.JPG)
 
 
