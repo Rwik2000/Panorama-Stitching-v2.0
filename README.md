@@ -110,7 +110,7 @@ The shape of the output image can be changed in [Line 57](https://github.com/Rwi
 
 ## Results
 
-![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Final_Outputs/I1.JPG)
+![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Outputs/I1/I1.JPG)
 
 ![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Outputs/I4/I4.JPG)
 
