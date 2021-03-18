@@ -63,6 +63,7 @@ for Dataset in Datasets:
 
 ```
 3. The output of the same would be save in the Output directory.
+4. In the terminal run python main.py
 
 ### Flow of the Code:
 1. SIFT to detect features.
