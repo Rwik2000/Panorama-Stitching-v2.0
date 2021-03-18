@@ -26,7 +26,7 @@ import random
 
 from homography import homographyRansac
 from Warp import Warp
-from blend_and_stitch import LaplacianBlend
+from blend_and_stitch import stitcher
 
 class panaroma_stitching():    
     def __init__(self):
@@ -36,7 +36,7 @@ class panaroma_stitching():
         self.warp_images = []
         self.warp_mask = []
         self.inbuilt_CV = 0
-    
+        self.blendON = 1 #to use laplacian blend.... keep it ON!
     # Finding the common features between the two images, mapping the features, 
     # getting the homography and warping the required images
     def map2imgs(self, images):
@@ -86,9 +86,9 @@ class panaroma_stitching():
             ptsB = np.float32([kpsB[i] for (i, _) in matches])
             # Calling the homography class
             reprojThresh =4
-            homographyFunc = homographyRansac(reprojThresh,1000)
             # Obtaining the homography matrix
             if not self.inbuilt_CV:
+                homographyFunc = homographyRansac(reprojThresh,1000)
                 H= homographyFunc.getHomography(ptsA, ptsB)
             else:
                 H,_ = cv2.findHomography(ptsA, ptsB, cv2.RANSAC, reprojThresh)
@@ -138,14 +138,19 @@ class panaroma_stitching():
             temp_mid_image = temp_warp
         print("Transformations Applied....")
         print("Blending and Stitching....")
-        final = LaplacianBlend(self.warp_images,self.warp_mask)
+
+        stitchDscp = stitcher()
+        if self.blendON:
+            final = stitchDscp.LaplacianBlend(self.warp_images,self.warp_mask, n=5)
+        else:
+            final = stitchDscp.stitchOnly(self.warp_images,self.warp_mask)
         cv2.imshow("stitch",final)        
         cv2.waitKey(0)
         return final
         
 
 # image in the dataset must be in order from left to right
-Datasets = ["I1","I4","I5"]
+Datasets = ["I1"]
 for Dataset in Datasets:
     print("Stitching Dataset : ", Dataset)
     Path = "Dataset/"+Dataset
@@ -160,8 +165,8 @@ for Dataset in Datasets:
         images[i] = imutils.resize(images[i], width=300)
 
     images = images[:]
-    stitcher = panaroma_stitching()
-    result = stitcher.MultiStitch(images)
+    panoStitch = panaroma_stitching()
+    result = panoStitch.MultiStitch(images)
     print("========>Done! Final Image Saved in Outputs Dir!\n\n")
     if os.path.exists("Outputs/"+Dataset):
         shutil.rmtree("Outputs/"+Dataset)
