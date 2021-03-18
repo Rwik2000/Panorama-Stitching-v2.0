@@ -5,7 +5,7 @@ Code by Rwik Rana, IITGn.
 
 View the project on https://github.com/Rwik2000/Panorama-Stitching-v2.0 for better viewing 
 
-This is a Code to stitch multiple images to create panoramas. This is robust for stitching **4 images**. This is the tree for the entire repo:\
+This is a Code to stitch multiple images to create panoramas.This is the tree for the entire repo:
 
 ```
 Panorama Stitching
@@ -36,7 +36,7 @@ warping, RANSAC and Laplacian Blending to solve the problem statement.
 ##### Procedure:
 In the [main.py](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py), 
 1. Add your dataset in the Dataset Directory.
-2. In [line 148](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py#L148), add your datasets in the Datasets array.
+2. In [line 157](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py#L157), add your datasets in the Datasets array.
 ```python
 Datasets = ["I1","I4","I5"] #ADD YOUR DATASET HERE
 for Dataset in Datasets:
@@ -75,6 +75,7 @@ for Dataset in Datasets:
 
 #### Implementation of Ransac:
 Refer to the `homographyRansac()` in [Homography.py](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/homography.py). Access the object `getHomography()` of the class to get the desired homography matrix.
+For my implementation, for each pair of image, RANSAC does 100 iterations and threshold is kept as 4.
 ```python
         # Set the threshold and number of iterations neede in RANSAC.
         self.ransacThresh = ransacThresh
@@ -107,7 +108,11 @@ def InvWarpPerspective(self, im, invA, H,output_shape):
 #### Laplacian Blending
 Input list of images and their corresponding masks in grayscale. Along with that add the number of layers of laplcian pyramid is to be made for the final blending and stitching. it is to be noted that the input images to the `LaplacianBlending()` function must have a shape such that the number of rows and columns are divisible by 2^n.
 
-The shape of the output image can be changed in [Line 57](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py#L57) of of `main.py` file. Notice here, I have kept a size of (640, 1600) i.e. height and width being 640 and 1600 respectively.
+The shape of the output image can be changed in [Line 60](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/main.py#L60) of of `main.py` file. Notice here, I have kept a size of (640, 1600) i.e. height and width being 640 and 1600 respectively.
+
+If you do not want blending, in the main.py `panorama_stitching()` Class, turn the `blendON` to False.
+One would get a result like:
+![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Outputs/No_blend.png)
 
 ## Results
 
@@ -117,4 +122,10 @@ The shape of the output image can be changed in [Line 57](https://github.com/Rwi
 
 ![alt text](https://github.com/Rwik2000/Panorama-Stitching-v2.0/blob/main/Outputs/I5/I5.JPG)
 
+
+## Files:
+* `main.py` to run and compile the entire code.
+* `Warp.py` contains `Warp()` clas which helps in image warping
+* `homography.py` helps in finding the homography for two images. It also contains the code for RANSAC.
+* `blend_and_stitch.py` contains `stitcher()` Class which helps in blending and stitching. You can either use `laplcacianBlending()` for blending and stitching or `onlyStitch()` to only stitch without blending.
 

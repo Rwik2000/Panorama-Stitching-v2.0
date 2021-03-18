@@ -6,7 +6,7 @@ warping, RANSAC and Laplacian Blending to solve the problem statement.
 
 To use the code, 
 1. Add your dataset in the Dataset Directory.
-2. In line 147, add your datasets in the Datasets array.
+2. In line 153, add your datasets in the Datasets array.
 3. The output of the same would be save in the Output directory.
 
 Flow of the Code:
@@ -15,7 +15,7 @@ Flow of the Code:
 3. Finding the the homography matrix i.e. the mapping from one image plane to another.
 4. warping the images using the inverse of homography matrix to 
    ensure no distortion/blank spaces remain in the transformed image.
-5. Stitching and blendign all the warped images together
+5. Stitching and blending all the warped images together
 '''
 import numpy as np
 import cv2
@@ -23,6 +23,8 @@ import os
 import shutil
 import imutils
 import random
+
+from numpy.lib.type_check import imag
 
 from homography import homographyRansac
 from Warp import Warp
@@ -36,6 +38,8 @@ class panaroma_stitching():
         self.warp_images = []
         self.warp_mask = []
         self.inbuilt_CV = 0
+        self.p = 0
+        self.dataset = "data"
         self.blendON = 1 #to use laplacian blend.... keep it ON!
     # Finding the common features between the two images, mapping the features, 
     # getting the homography and warping the required images
@@ -52,7 +56,6 @@ class panaroma_stitching():
             # Setting the offset only for the main image... homography takes care of the rest of the images
             warpClass.xOffset = 150
             warpClass.yOffset = 500
-
         # Warping the image
         warpedImg = warpClass.InvWarpPerspective(imageA, invH,H,(640, 1600))
         return np.uint8(warpedImg)
@@ -111,10 +114,10 @@ class panaroma_stitching():
         mid_image = self.map2imgs((images[mid_image_loc], images[mid_image_loc]))
         self.ismid = 0
         temp_mid_image = mid_image
-        p = 0
+        self.p = 0
         for i in range(len(left_images)):
-            print("=============> Transformed Image : ", p)
-            p+=1
+            print("=============> Transformed Image : ", self.p)
+            self.p+=1
             temp_warp = self.map2imgs((temp_mid_image, left_images[i]))
             _mask = self.extractMask(temp_warp)
             self.warp_mask.append(_mask)
@@ -122,15 +125,15 @@ class panaroma_stitching():
             temp_mid_image = temp_warp
         self.warp_images = self.warp_images[::-1]
         self.warp_mask = self.warp_mask[::-1]
-        print("=============> Transformed Image : ", p)
-        p+=1
+        print("=============> Transformed Image : ", self.p)
+        self.p+=1
         self.warp_images.append(mid_image)
         _mask = self.extractMask(mid_image)
         self.warp_mask.append(_mask)
         temp_mid_image = mid_image
         for i in range(len(right_images)):
-            print("=============> Transformed Image : ", p)
-            p+=1
+            print("=============> Transformed Image : ", self.p)
+            self.p+=1
             temp_warp = self.map2imgs((temp_mid_image, right_images[i]))
             _mask = self.extractMask(temp_warp)
             self.warp_mask.append(_mask)
@@ -150,7 +153,7 @@ class panaroma_stitching():
         
 
 # image in the dataset must be in order from left to right
-Datasets = ["I1"]
+Datasets = ["I1","I4","I5"]
 for Dataset in Datasets:
     print("Stitching Dataset : ", Dataset)
     Path = "Dataset/"+Dataset
@@ -164,9 +167,10 @@ for Dataset in Datasets:
     for i in range(len(images)):
         images[i] = imutils.resize(images[i], width=300)
 
-    images = images[:]
+    inpImgs = images[:]
     panoStitch = panaroma_stitching()
-    result = panoStitch.MultiStitch(images)
+    panoStitch.dataset = Dataset
+    result = panoStitch.MultiStitch(inpImgs)
     print("========>Done! Final Image Saved in Outputs Dir!\n\n")
     if os.path.exists("Outputs/"+Dataset):
         shutil.rmtree("Outputs/"+Dataset)
@@ -174,4 +178,8 @@ for Dataset in Datasets:
     cv2.imwrite("Outputs/"+Dataset+"/"+Dataset+".JPG", result)
 
 
-
+# Note that for dataset 
+# I2: Use Images (1 to 4) or (2 to 5)
+# I3: Use Images (3 to 5)  
+# I6: Use Images in the order  5,1,2,3
+ 

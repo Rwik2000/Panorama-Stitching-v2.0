@@ -79,6 +79,7 @@ class stitcher():
                 for lap_L, lap_R in zip(left_py, right_py):
                     _, cols, _ = lap_L.shape
                     ls = np.hstack((lap_L[:, 0:int(midPt*cols)], lap_R[:, int(midPt*cols):]))
+
                     LS.append(ls)
             # If there is no intersection, simply add the images
             else:
@@ -94,7 +95,6 @@ class stitcher():
                 final_image = cv2.pyrUp(final_image)
                 final_image = final_image + LS[j]
                 final_image[final_image>255] = 255; final_image[final_image<0] = 0 
-                cv2.waitKey(0)
                 
             common_image = final_image
 
@@ -118,7 +118,6 @@ class stitcher():
             mask_intersection = np.bitwise_and(common_mask, masks[i])
             if True in mask_intersection:                
                 c = images[i]!=0
-                # k = common_image.copy()
                 common_image[c] = images[i][c]
             # If there is no intersection, simply add the images
             else:
